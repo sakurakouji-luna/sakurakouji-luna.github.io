@@ -1,26 +1,4 @@
-  
-<head>
-        <title>slchy_cyberspace</title>
-  <style type="text/css">
-        h1{
-    text-align:center;
-
-        }
-    footer{
-    text-align:center;
-    }
-        </style>
-</head>
-
-<body>
-  <h1>开发ing🥰</h1>
-</body>
-<footer><a href="https://icp.gov.moe/?keyword=20225327" target="_blank">萌ICP备20225327号</a></footer>
-</html>
-
-
-
-<!--是本🐁🐁在大致浏览HTML与CSS之后拼凑出来的垃圾网页，见笑--
+<!--是本🐁🐁在大致浏览HTML与CSS之后拼凑出来的垃圾网页，见笑-->
 <!DOCTYPE html>
 <html>
   <head>
@@ -44,9 +22,16 @@
         position: relative;
       }
 
+      .header_avatar_body {
+        position: absolute;
+        height: 100%;
+        width: 33.3%;
+        /*background-color: #39c5bb; test*/
+      }
+
       .header_avatar {
         position: absolute;
-        left: 6%;
+        left: 20%;
         top: 4px;
         height: 92px;
         width: 92px;
@@ -56,17 +41,32 @@
 
       .header_info_body {
         position: absolute;
+        display: table;
+        height: 100%;
+        left: 36%;
+        /*background-color: #0069d9;  test*/
+      }
+
+      .header_info_text {
+        display: table-cell;
+        vertical-align: middle;
+        font-size: medium;
+      }
+
+      .header_link_body {
+        position: absolute;
         top: 15px;
         height: 70px;
         width: 140px;
         left: 80%;
         border-radius:10px;
-        background-color: #5bcffa;
+        /*background-color: #5bcffa;*/
+        background-color: #007bff;
 
 
       }
 
-      .header_info_text {
+      .header_link_text {
         font-size: 200%;
         line-height: 70px;
         display: block;
@@ -75,99 +75,153 @@
         color: rgb(255, 255, 255);
       }
 
-      .header_info_text:hover {
+      .header_link_text:hover {
         border-radius:10px;
-        background-color: blue;
+        background-color: #0069d9;
       }
 
-      .header_info_text:focus{
+      .header_link_text:focus{
         color: rgb(255,255,255,0);
       }
 
-      /*
+
       .wallpaper {
-        
-        
+        background-image:url(https://cdn.jsdelivr.net/gh/sakurakouji-luna/pic@main/forum/BG.jpg);
+        background-size: cover;
+        background-repeat: no-repeat;
+        background-attachment: scroll;
+        background-position: 100 0;
+        perspective-origin: 100 0;
+        perspective: 1px;
+         /*此处之前是backgound-size 100% 100%，-accachment:fixed; 奇怪的是，明明*/
+        /*divbody是divwallapaper的子元素但是这个父元素却受制于它的子元素*/ 
       }
 
       .body {
-
+        display: flex;
+        height: 1236px;
+        position: relative;
+        flex-wrap: wrap;
       }
 
       .body_card{
-
+        display: block;
+        background-color: rgb(255,255,255,0.3);
+        box-shadow: 0 4px 8px #bcbcbc;
+        width: 33.3%;
+        height: 50%;
+        float: left;
       }
 
-      #:hover{
-        
+      .body_card:focus{
+        color: rgb(255,255,255,0);
+      }
+
+      .body_card:hover{
+        background-color: rgb(255,255,255,0.6);
       }
 
       .card_link {
-        text-decoration: none;
-        width: 48px;
-        height: 12px;
         display: block;
-        margin: 14px ;
-        padding-top: 8px;
+        text-decoration: none;
+        text-align: center;
+        font-size: 200%;
+        height: 100%;
+        line-height: 618px;
         color: rgb(255, 255, 255);
       }
 
       .card_img {
-        text-decoration: none;
-        width: 48px;
-        height: 12px;
-        display: block;
-        margin: 14px ;
-        padding-top: 8px;
-        color: rgb(255, 255, 255);
+        
       }
 
       .footer_body {
-        font-size: 12px;
+        height: 50px;
+        width: 100%;
         bottom: 0;
         position: fixed;
-        padding-left: 12px;
-        background-color: rgba(255,255,255,0.6);
+        display: flex;
+        background-color: #f5aab9;
       }
 
       .footer_info {
-        font-size: 12px;
-        bottom: 0;
-        position: fixed;
-        padding-left: 12px;
-        background-color: rgba(255,255,255,0.6);
+        position: absolute;
+        left: 50%;
       }
-    */
+
+      .footer_notes {
+        position: absolute;
+        display: block;
+        text-decoration: none;
+        line-height: 50px;
+        right: 60px;
+      }
+
     </style>
     
       <div class="header_body">
         
+      <div class="header_avatar_body">
         <div class="header_avatar">
           <a>头像</a>
         </div>
 
         <div class="header_info_body">
-          <a class="header_info_text" role="button" href="https://tsuki.su">@slchy</a>
-        </div>
-
-      </div>
-<!--
-    <div class="wallpaper">
-    
-      <div class="back">
-        <div style="width: 72px; height: 9px; padding-top: 12px; padding-left: 64px;">
-          <p class="pback">去往首页</p>
-        </div>
-        <div id="var" class="click">
-          <a class="link" role="button" href="https://tsuki.su" target="_blank">转跳</a>
+          <p class="header_info_text">будь ко мне жестоко,<br>Жестоко не будь.</p>
         </div>
       </div>
 
-    </div>
-    
-      <div class="footer">
-       <a href="https://icp.gov.moe/?keyword=20210167" target="_blank">萌ICP备20210167号</a><br><p>since 2020 丨 SLCHY</p>
+
+        <div class="header_link_body">
+          <a class="header_link_text" role="button" href="https://tsuki.su">@slchy</a>
+        </div>
+
       </div>
---
+
+    
+      <div class="wallpaper">
+
+        <div class="body">
+          <div class="body_card">
+            <a class="card_link" role="button" href="https://tsuki.su">Blog</a>
+          </div>
+
+          <div class="body_card">
+            <a class="card_link" role="button" href="https://tsuki.su">OneDrive</a>
+          </div>
+
+          <div class="body_card">
+            <a class="card_link" role="button" href="https://tsuki.su">Steam</a>
+          </div>
+
+          <div class="body_card">
+            <a class="card_link" role="button" href="https://tsuki.su">Radio</a>
+          </div>
+
+          <div class="body_card">
+            <a class="card_link" role="button" href="https://tsuki.su">Email</a>
+          </div>
+          
+          <div class="body_card">
+            <a class="card_link" role="button" href="https://tsuki.su">Info</a>
+          </div>
+        </div>
+
+      </div>
+
+
+      <div class="footer_body">
+
+        <div class="footer_info">
+          <a href="https://icp.gov.moe/?keyword=20210167" target="_blank">萌ICP备20210167号</a>
+          <br>
+          <p>since 2020 丨 SLCHY</p>
+        </div>
+        <div>
+          <a class="footer_notes" href="https://scujcc-my.sharepoint.com/:w:/g/personal/213020167_scujcc_edu_cn/EeUBX6vtE8hFr0zEvxN3FBMBJfkT2iEQ2WusjFVZt5__-w?e=Ud6Iww" target="_blank">说明</a>
+        </div>
+
+      </div>
+
     </body>
 </html>
