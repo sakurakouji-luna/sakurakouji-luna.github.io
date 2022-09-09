@@ -41,6 +41,7 @@
       .header_info_body {
         position: absolute;
         display: table;
+        top: 0px;
         height: 100%;
         left: 42%;
         /*background-color: #0069d9;  test*/
@@ -96,9 +97,13 @@
         /*divbody是divwallapaper的子元素但是这个父元素却受制于它的子元素*/ 
       }
 
+      body,html,div {
+        height: 100%;
+      }
+
       .body {
         display: flex;
-        height: 1236px;
+        height: 100%;
         position: relative;
         flex-wrap: wrap;
       }
