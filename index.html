@@ -4,7 +4,7 @@
   <head>
     <title>slchy_cyberspace</title>
     <meta charset="UTF-8">
-    <link rel="shortcut icon" type="image/x-icon" href="waiting-for-filling"/>
+    <link rel="shortcut icon" type="image/x-icon" href="https://cdn.jsdelivr.net/gh/sakurakouji-luna/pic@main/web/avatar/web_ico_runa.ico"/>
     <style type="text/css">body{background-color: #ededed;}</style>
   </head>
   <body>
@@ -35,15 +35,14 @@
         top: 4px;
         height: 92px;
         width: 92px;
-
-        background-color: blueviolet; /*此行仅供测试*/
+        /*background-color: blueviolet; test*/
       }
 
       .header_info_body {
         position: absolute;
         display: table;
         height: 100%;
-        left: 36%;
+        left: 42%;
         /*background-color: #0069d9;  test*/
       }
 
@@ -86,7 +85,7 @@
 
 
       .wallpaper {
-        background-image:url(https://cdn.jsdelivr.net/gh/sakurakouji-luna/pic@main/forum/BG.jpg);
+        background-image:url(https://cdn.jsdelivr.net/gh/sakurakouji-luna/pic@main/web/wallpaper/runa_under_tsuki.jpg);
         background-size: cover;
         background-repeat: no-repeat;
         background-attachment: scroll;
@@ -123,8 +122,12 @@
 
       .card_link {
         display: block;
+        display: flex;
         text-decoration: none;
         text-align: center;
+        flex-direction: row;              
+        justify-content: center;
+        align-items: center;
         font-size: 200%;
         height: 100%;
         line-height: 618px;
@@ -132,7 +135,8 @@
       }
 
       .card_img {
-        
+        width: 200px;
+        height: 200px;
       }
 
       .footer_body {
@@ -162,8 +166,8 @@
       <div class="header_body">
         
       <div class="header_avatar_body">
-        <div class="header_avatar">
-          <a>头像</a>
+        <div>
+          <img class="header_avatar" src="https://cdn.jsdelivr.net/gh/sakurakouji-luna/pic@main/web/avatar/avatar_runa.png" alt="avatar"/>
         </div>
 
         <div class="header_info_body">
@@ -178,32 +182,44 @@
 
       </div>
 
-    
+      
       <div class="wallpaper">
 
         <div class="body">
           <div class="body_card">
-            <a class="card_link" role="button" href="https://tsuki.su">Blog</a>
+            <a class="card_link" role="button" href="https://tsuki.su/blog">
+              <img class="card_img" src="https://cdn.jsdelivr.net/gh/sakurakouji-luna/pic@main/web/icon/1801xiaoxi.png" alt="Blog">
+            </a>
           </div>
 
           <div class="body_card">
-            <a class="card_link" role="button" href="https://tsuki.su">OneDrive</a>
+            <a class="card_link" role="button" href="">
+              <img class="card_img" src="https://cdn.jsdelivr.net/gh/sakurakouji-luna/pic@main/web/icon/OneDrive.png" alt="OneDrive">
+            </a>
           </div>
 
           <div class="body_card">
-            <a class="card_link" role="button" href="https://tsuki.su">Steam</a>
+            <a class="card_link" role="button" href="">
+              <img class="card_img" src="https://cdn.jsdelivr.net/gh/sakurakouji-luna/pic@main/web/icon/steam.png" alt="Steam"/>
+            </a>
           </div>
 
           <div class="body_card">
-            <a class="card_link" role="button" href="https://tsuki.su">Radio</a>
+            <a class="card_link" role="button" href="https://tsuki.su/radio">
+              <img class="card_img" src="https://cdn.jsdelivr.net/gh/sakurakouji-luna/pic@main/web/icon/Analogue-Antenna.png" alt="Radio">
+            </a>
           </div>
 
           <div class="body_card">
-            <a class="card_link" role="button" href="https://tsuki.su">Email</a>
+            <a class="card_link" role="button" href="">
+              <img class="card_img" src="https://cdn.jsdelivr.net/gh/sakurakouji-luna/pic@main/web/icon/mail.png" alt="Email">
+            </a>
           </div>
           
           <div class="body_card">
-            <a class="card_link" role="button" href="https://tsuki.su">Info</a>
+            <a class="card_link" role="button" href="https://tsuki.su/info">
+              <img class="card_img" src="https://cdn.jsdelivr.net/gh/sakurakouji-luna/pic@main/web/icon/lianxiren.png" alt="Info">
+            </a>
           </div>
         </div>
 
