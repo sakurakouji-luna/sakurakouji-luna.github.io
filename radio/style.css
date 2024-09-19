@@ -3,8 +3,12 @@ body {
   justify-content: center;
   align-items: center;
   min-height: 30vh;
-  background: #000000;
+  background: url('img/noscript.png');
   overflow-y: auto;
+}
+
+.js-loaded {
+  background: #000000;
 }
 
 .container {
