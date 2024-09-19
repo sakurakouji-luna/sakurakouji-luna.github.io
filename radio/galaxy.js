@@ -1,4 +1,5 @@
 //js作者：山羊の前端小窝（https://space.bilibili.com/266664645）
+    document.body.classList.add('js-loaded');
     // 定义星星的颜色
     // const STAR_COLOR = '#fff';
     const STAR_TYPES = {
