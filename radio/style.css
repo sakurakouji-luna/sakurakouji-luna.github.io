@@ -53,8 +53,8 @@ body {
   border-bottom-left-radius: 10px;
   text-decoration: none;
   text-align: center;
-  margin: 0;
-  width: 40%;
+  margin: 10px;
+  width: 25%;
 }
 
 #mainUrl:hover{
@@ -79,6 +79,7 @@ body {
   color: #44617b;
   width: 60%;
   font-size: 32px;
+  margin: 10px;
 }
 
 .centerPic {
