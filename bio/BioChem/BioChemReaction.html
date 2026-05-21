@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BioChem Reaction</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --panel: rgba(18, 28, 23, 0.88);
+        --panel-border: rgba(255, 255, 255, 0.18);
+        --text: #f1f7ee;
+        --accent: #78d6bd;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: #e6fde8;
+        font-family: Arial, "Microsoft YaHei", sans-serif;
+      }
+
+      .viewer {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        cursor: grab;
+        touch-action: none;
+        user-select: none;
+      }
+
+      .viewer.is-dragging {
+        cursor: grabbing;
+      }
+
+      .stage {
+        position: absolute;
+        left: 0;
+        top: 0;
+        transform-origin: 0 0;
+        will-change: transform;
+      }
+
+      .reaction-map {
+        display: block;
+        width: 5147px;
+        height: 4467px;
+        max-width: none;
+        pointer-events: none;
+        user-select: none;
+      }
+
+      .toolbar {
+        position: fixed;
+        right: 12px;
+        top: 12px;
+        z-index: 2;
+        display: flex;
+        gap: 6px;
+        padding: 6px;
+        border: 1px solid var(--panel-border);
+        border-radius: 6px;
+        background: var(--panel);
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+        backdrop-filter: blur(8px);
+      }
+
+      .tool-button {
+        display: grid;
+        place-items: center;
+        width: 30px;
+        height: 30px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 4px;
+        color: var(--text);
+        background: rgba(255, 255, 255, 0.08);
+        font-size: 17px;
+        line-height: 1;
+        cursor: pointer;
+      }
+
+      .tool-button:hover,
+      .tool-button:focus-visible {
+        border-color: var(--accent);
+        outline: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main id="viewer" class="viewer" aria-label="BioChem reaction viewer">
+      <div id="stage" class="stage">
+        <img id="map" class="reaction-map" src="./BioChemReaction.svg" alt="">
+      </div>
+    </main>
+    <nav class="toolbar" aria-label="View controls">
+      <button class="tool-button" type="button" data-action="zoom-out" title="Zoom out">-</button>
+      <button class="tool-button" type="button" data-action="reset" title="Fit view">⌂</button>
+      <button class="tool-button" type="button" data-action="zoom-in" title="Zoom in">+</button>
+    </nav>
+
+    <script>
+      (() => {
+        const viewer = document.getElementById("viewer");
+        const stage = document.getElementById("stage");
+        const map = document.getElementById("map");
+        const state = {
+          x: 0,
+          y: 0,
+          scale: 1,
+          minScale: 0.08,
+          maxScale: 4,
+          dragging: false,
+          pointerId: null,
+          startX: 0,
+          startY: 0,
+          originX: 0,
+          originY: 0
+        };
+
+        function clamp(value, min, max) {
+          return Math.min(max, Math.max(min, value));
+        }
+
+        function render() {
+          stage.style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale})`;
+        }
+
+        function fit() {
+          const rect = viewer.getBoundingClientRect();
+          const mapWidth = map.naturalWidth || 5147;
+          const mapHeight = map.naturalHeight || 4467;
+          const scale = Math.min(rect.width / mapWidth, rect.height / mapHeight);
+          state.scale = clamp(scale, state.minScale, state.maxScale);
+          state.x = (rect.width - mapWidth * state.scale) / 2;
+          state.y = (rect.height - mapHeight * state.scale) / 2;
+          render();
+        }
+
+        function zoomAt(clientX, clientY, nextScale) {
+          const rect = viewer.getBoundingClientRect();
+          const oldScale = state.scale;
+          const scale = clamp(nextScale, state.minScale, state.maxScale);
+          const pointX = clientX - rect.left;
+          const pointY = clientY - rect.top;
+          const mapX = (pointX - state.x) / oldScale;
+          const mapY = (pointY - state.y) / oldScale;
+
+          state.scale = scale;
+          state.x = pointX - mapX * scale;
+          state.y = pointY - mapY * scale;
+          render();
+        }
+
+        viewer.addEventListener("pointerdown", (event) => {
+          if (event.button !== 0) return;
+          state.dragging = true;
+          state.pointerId = event.pointerId;
+          state.startX = event.clientX;
+          state.startY = event.clientY;
+          state.originX = state.x;
+          state.originY = state.y;
+          viewer.classList.add("is-dragging");
+          viewer.setPointerCapture(event.pointerId);
+        });
+
+        viewer.addEventListener("pointermove", (event) => {
+          if (!state.dragging || event.pointerId !== state.pointerId) return;
+          state.x = state.originX + event.clientX - state.startX;
+          state.y = state.originY + event.clientY - state.startY;
+          render();
+        });
+
+        function stopDrag(event) {
+          if (event.pointerId !== state.pointerId) return;
+          state.dragging = false;
+          state.pointerId = null;
+          viewer.classList.remove("is-dragging");
+        }
+
+        viewer.addEventListener("pointerup", stopDrag);
+        viewer.addEventListener("pointercancel", stopDrag);
+
+        viewer.addEventListener("wheel", (event) => {
+          event.preventDefault();
+          const factor = event.deltaY < 0 ? 1.12 : 0.88;
+          zoomAt(event.clientX, event.clientY, state.scale * factor);
+        }, { passive: false });
+
+        document.querySelector(".toolbar").addEventListener("click", (event) => {
+          const button = event.target.closest("[data-action]");
+          if (!button) return;
+          const rect = viewer.getBoundingClientRect();
+          const centerX = rect.left + rect.width / 2;
+          const centerY = rect.top + rect.height / 2;
+          if (button.dataset.action === "zoom-in") {
+            zoomAt(centerX, centerY, state.scale * 1.2);
+          } else if (button.dataset.action === "zoom-out") {
+            zoomAt(centerX, centerY, state.scale / 1.2);
+          } else {
+            fit();
+          }
+        });
+
+        viewer.addEventListener("dblclick", fit);
+        window.addEventListener("resize", fit);
+        if (map.complete) fit();
+        map.addEventListener("load", fit, { once: true });
+      })();
+    </script>
+  </body>
+</html>
