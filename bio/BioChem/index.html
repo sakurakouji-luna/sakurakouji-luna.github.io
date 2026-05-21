@@ -23,6 +23,7 @@
     
     <title>slchy_cyberspace</title>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="shortcut icon" type="image/x-icon" href="https://cdn.jsdelivr.net/gh/sakurakouji-luna/pic@main/web/avatar/web_ico_runa.ico"/>
     <style type="text/css">body{background-color: #ededed;}</style>
   </head>
@@ -71,6 +72,33 @@
 
       #var:hover{
         background-color: rgb( 255, 255, 255, 0.9);
+      }
+
+      @media (max-width: 760px) {
+        .paper {
+          min-height: 100vh;
+          height: auto;
+          background-position: center;
+        }
+
+        .back {
+          display: grid;
+          min-height: 100vh;
+        }
+
+        .click {
+          width: 100%;
+          height: auto;
+          min-height: 50vh;
+          float: none;
+        }
+
+        .link {
+          padding: 24px;
+          font-size: clamp(2rem, 13vw, 4rem);
+          line-height: 1.15;
+          overflow-wrap: anywhere;
+        }
       }
 
     </style>
