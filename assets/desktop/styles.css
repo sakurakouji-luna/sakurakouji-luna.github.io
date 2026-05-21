@@ -309,20 +309,48 @@ input {
 
 .terminal-body {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto auto;
+  grid-template-rows: minmax(0, 1fr) auto;
   gap: 12px;
   height: 100%;
+  min-height: 0;
   padding: 18px;
+  overflow: hidden;
   color: #dcebd1;
   background:
     radial-gradient(circle at top right, rgba(118, 209, 199, 0.12), transparent 34%),
     linear-gradient(135deg, #11140f, #080a08);
 }
 
+.terminal-scroll {
+  display: grid;
+  grid-template-rows: auto minmax(16px, 1fr) auto;
+  gap: 12px;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.terminal-scroll::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.terminal-body::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 .terminal-output {
   min-height: 0;
-  overflow: auto;
-  padding-right: 4px;
+  overflow: visible;
+}
+
+.terminal-spacer {
+  min-height: 0;
 }
 
 .terminal-line {
@@ -344,6 +372,7 @@ input {
   line-height: 1.08;
   letter-spacing: 0;
   white-space: pre;
+  overflow: hidden;
   overflow-wrap: normal;
   text-shadow: 0 0 18px rgba(167, 212, 111, 0.26);
 }
@@ -361,6 +390,7 @@ input {
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 8px;
   max-width: 980px;
+  min-height: 0;
 }
 
 .terminal-app {
@@ -397,6 +427,7 @@ input {
   min-height: 32px;
   padding-top: 8px;
   border-top: 1px solid #273021;
+  background: inherit;
 }
 
 .terminal-input {
@@ -585,18 +616,58 @@ input {
 }
 
 @media (max-width: 760px) {
+  :root {
+    --bar-height: 78px;
+  }
+
+  html,
+  body {
+    min-height: 100%;
+    height: 100%;
+  }
+
+  .wm-shell {
+    min-height: 100dvh;
+    height: 100dvh;
+    background-attachment: scroll;
+  }
+
   .polybar {
-    grid-template-columns: minmax(150px, 1fr) minmax(80px, 0.8fr) auto;
-    gap: 6px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: 36px 32px;
+    gap: 4px 8px;
+    height: var(--bar-height);
+    padding: 5px 8px;
+  }
+
+  .workspaces {
+    grid-column: 1 / 2;
+    min-width: 0;
+    padding-bottom: 1px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .workspace-button {
+    flex: 0 0 30px;
+    width: 30px;
+    height: 26px;
   }
 
   .bar-title {
-    text-align: right;
-    padding-right: 4px;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    padding: 0;
+    font-size: 12px;
+    line-height: 1.3;
+    text-align: left;
   }
 
   .system-status {
-    display: flex;
+    grid-column: 2 / 3;
+    justify-self: end;
+    gap: 4px;
+    overflow: visible;
   }
 
   .system-status .status-pill:not(.status-button) {
@@ -604,19 +675,112 @@ input {
   }
 
   .system-status .status-split {
-    display: inline-flex;
+    display: none;
+  }
+
+  .status-pill {
+    height: 30px;
+    max-width: none;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
+  #helpButton {
+    display: none;
+  }
+
+  .desktop {
+    height: calc(100dvh - var(--bar-height));
+  }
+
+  .window-frame {
+    border-width: 1px;
+    transition: none;
   }
 
   .window-header {
-    grid-template-columns: auto minmax(64px, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    min-height: 44px;
+    padding: 6px 8px;
+  }
+
+  .window-icon {
+    width: 30px;
+    height: 30px;
+    flex-basis: 30px;
+  }
+
+  .window-caption {
+    font-size: 13px;
   }
 
   .window-tools {
     display: none;
   }
 
-  .window-frame.is-active .window-tools {
-    display: flex;
-    grid-column: 1 / -1;
+  .window-button {
+    width: 32px;
+    height: 32px;
+  }
+
+  .terminal-body {
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .terminal-scroll {
+    grid-template-rows: auto minmax(8px, 1fr) auto;
+    gap: 10px;
+  }
+
+  .terminal-line {
+    font-size: 12px;
+  }
+
+  .terminal-banner {
+    font-size: clamp(8px, 2.5vw, 11px);
+  }
+
+  .terminal-grid {
+    grid-template-columns: 1fr;
+    max-width: none;
+  }
+
+  .terminal-app {
+    min-height: 46px;
+  }
+
+  .rofi-overlay {
+    inset: var(--bar-height) 0 0;
+    align-items: start;
+    padding: 10px;
+  }
+
+  .rofi-panel {
+    width: 100%;
+    height: min(560px, calc(100dvh - var(--bar-height) - 20px));
+    padding: 10px;
+    border-radius: 6px;
+  }
+
+  .rofi-input {
+    height: 44px;
+    font-size: 16px;
+  }
+
+  .rofi-row {
+    grid-template-columns: 42px minmax(0, 1fr);
+    min-height: 56px;
+  }
+
+  .rofi-kind {
+    display: none;
+  }
+
+  .toast-region {
+    right: 8px;
+    bottom: 8px;
+    left: 8px;
+    width: auto;
   }
 }
