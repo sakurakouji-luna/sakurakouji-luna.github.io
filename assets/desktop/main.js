@@ -35,6 +35,7 @@
 
     elements.workspaceBar = document.getElementById("workspaceBar");
     elements.windowTitle = document.getElementById("windowTitle");
+    elements.appsButton = document.getElementById("appsButton");
     elements.helpButton = document.getElementById("helpButton");
     elements.splitMode = document.getElementById("splitMode");
     elements.networkStatus = document.getElementById("networkStatus");
@@ -69,6 +70,7 @@
       if (!button) return;
       switchWorkspace(Number(button.dataset.workspace));
     });
+    elements.appsButton.addEventListener("click", openRofi);
     elements.helpButton.addEventListener("click", openHelpTerminal);
 
     elements.windowsLayer.addEventListener("mousedown", (event) => {
@@ -269,7 +271,18 @@
   }
 
   function getLayouts(root) {
-    return Tree.calculateLayout(root, getDesktopRect());
+    const rect = getDesktopRect();
+    if (isMobileLayout()) {
+      const activeWindow = Tree.findWindow(root, state.activeWindowId);
+      const fallbackWindow = Tree.collectWindows(root)[0];
+      const focusedWindow = activeWindow || fallbackWindow;
+      return focusedWindow ? [{ node: focusedWindow, rect }] : [];
+    }
+    return Tree.calculateLayout(root, rect);
+  }
+
+  function isMobileLayout() {
+    return window.matchMedia("(max-width: 760px)").matches;
   }
 
   function respectsMinimumSize(root) {
@@ -776,13 +789,17 @@
 
     const apps = Apps.APP_REGISTRY.filter((app) => app.kind !== "external");
     terminal.innerHTML = `
-      <div class="terminal-output" aria-live="polite"></div>
-      <div class="terminal-grid"></div>
+      <div class="terminal-scroll">
+        <div class="terminal-output" aria-live="polite"></div>
+        <div class="terminal-spacer" aria-hidden="true"></div>
+        <div class="terminal-grid"></div>
+      </div>
       <form class="terminal-form" data-action="terminal-form">
         <span class="terminal-prompt">$</span>
         <input class="terminal-input" type="text" autocomplete="off" spellcheck="false" aria-label="Terminal command">
       </form>
     `;
+    const scroll = terminal.querySelector(".terminal-scroll");
     const output = terminal.querySelector(".terminal-output");
     for (const line of node.terminalLines || []) {
       const row = document.createElement("p");
@@ -805,7 +822,7 @@
 
     content.replaceChildren(terminal);
     requestAnimationFrame(() => {
-      output.scrollTop = output.scrollHeight;
+      scroll.scrollTop = Math.max(0, output.offsetTop + output.scrollHeight - scroll.clientHeight);
       if (node.id === state.activeWindowId) terminal.querySelector(".terminal-input").focus();
     });
   }
