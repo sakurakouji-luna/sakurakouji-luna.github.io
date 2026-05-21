@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="slchy web tiling desktop">
+    <title>slchy_routingspace</title>
+    <link rel="shortcut icon" type="image/x-icon" href="https://cdn.jsdelivr.net/gh/sakurakouji-luna/pic@main/web/avatar/web_ico_runa.ico">
+    <link rel="stylesheet" href="./assets/desktop/styles.css">
+
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-3HN1RG37FH"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-3HN1RG37FH');
+    </script>
+    <script>
+      (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+      })(window, document, "clarity", "script", "lrrfwkrqdv");
+    </script>
+  </head>
+  <body>
+    <div class="wm-shell">
+      <header class="polybar">
+        <nav id="workspaceBar" class="workspaces" aria-label="Workspaces"></nav>
+        <div id="windowTitle" class="bar-title" aria-live="polite">Workspace 1 - Empty</div>
+        <div class="system-status" aria-label="System status">
+          <button id="helpButton" class="status-pill status-button" type="button">Help</button>
+          <span id="splitMode" class="status-pill status-split">horizontal</span>
+          <span id="networkStatus" class="status-pill">Online</span>
+          <span id="batteryStatus" class="status-pill">Battery --</span>
+          <time id="clock" class="status-pill" datetime=""></time>
+        </div>
+      </header>
+
+      <main id="desktop" class="desktop" tabindex="-1">
+        <div id="emptyState" class="empty-state" hidden>
+          <div class="empty-mark">slchy</div>
+          <div class="empty-title">Workspace 1 - Empty</div>
+        </div>
+        <section id="windowsLayer" class="windows-layer" aria-label="Tiling windows"></section>
+        <div id="interactionShield" class="interaction-shield" aria-hidden="true"></div>
+      </main>
+
+      <section id="rofiOverlay" class="rofi-overlay" aria-modal="true" role="dialog" hidden>
+        <div class="rofi-panel">
+          <input id="rofiInput" class="rofi-input" type="search" autocomplete="off" spellcheck="false" aria-label="Rofi search" placeholder="app / alias / url">
+          <div id="rofiList" class="rofi-list" role="listbox"></div>
+        </div>
+      </section>
+
+      <div id="toastRegion" class="toast-region" aria-live="polite"></div>
+    </div>
+
+    <script src="./assets/desktop/apps.js" defer></script>
+    <script src="./assets/desktop/tree.js" defer></script>
+    <script src="./assets/desktop/main.js" defer></script>
+  </body>
+</html>
