@@ -2,8 +2,8 @@
   const agentHandle = "slchy";
   const defaultIngressLink = `https://link.ingress.com/agent/${agentHandle}`;
 
-  const params = new URLSearchParams(window.location.search);
-  const ingressLink = params.get("link") || defaultIngressLink;
+  // 不再读取 ?link= 参数，避免开放重定向和 javascript: 链接导致的 XSS
+  const ingressLink = defaultIngressLink;
   const openButton = document.getElementById("openIngress");
   const biocard = document.getElementById("biocard");
   const cardFace = document.getElementById("cardFace");
