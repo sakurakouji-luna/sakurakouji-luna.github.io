@@ -18,4 +18,25 @@ description: moe.st 的随笔栏目上线：文章用 Markdown 写，自动生�
 - `scripts/build-blog.py` 把它们转成静态 HTML，样式和 moe.st 桌面保持一致
 - 推送到 GitHub 后由 Actions 自动构建，并更新 sitemap
 
+## 写一篇新文章
+
+在 `blog/posts-src/` 新建一个 Markdown 文件，开头写上这段信息：
+
+```yaml
+---
+title: 文章标题
+date: 2026-11-20
+tags: [moe.st, 随想]
+description: 一句话简介
+---
+```
+
+| 字段 | 说明 |
+| --- | --- |
+| `title` | 标题 |
+| `date` | 发布日期，YYYY-MM-DD |
+| `tags` | 标签，可省略 |
+| `description` | 列表和搜索结果里的简介 |
+| `draft` | 写 `true` 时不发布 |
+
 > Hello from the tiling desktop. *Thanks for reading.*
