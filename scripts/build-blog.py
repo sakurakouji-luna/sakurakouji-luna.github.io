@@ -253,7 +253,7 @@ def build_post(post):
     }
     content = post["html"]
     # the first H1 in the markdown is replaced by the front-matter title
-    content = re.sub(r"^\s*<h1[^>]*>.*?</h1>\s*", "", content, count=1, flags=re.S)
+    content = re.sub(r"^((?:\s*<!--.*?-->)*)\s*<h1[^>]*>.*?</h1>\s*", r"\1\n", content, count=1, flags=re.S)
     body = "\n".join([
         crumbs('<a href="/blog/essays/">essays</a>'),
         f"      <h1>{esc(post['title'])}</h1>",
