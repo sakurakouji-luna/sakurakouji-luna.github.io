@@ -46,6 +46,14 @@ input {
   background:
     linear-gradient(rgba(16, 17, 15, 0.58), rgba(16, 17, 15, 0.86)),
     url("https://cdn.jsdelivr.net/gh/sakurakouji-luna/pic@main/blog/blog_wallpaper_1.png") center / cover fixed;
+  /* WebP/AVIF first; browsers without image-set() type() support keep the PNG above */
+  background:
+    linear-gradient(rgba(16, 17, 15, 0.58), rgba(16, 17, 15, 0.86)),
+    image-set(
+      url("wallpaper/blog_wallpaper_1.avif") type("image/avif"),
+      url("wallpaper/blog_wallpaper_1.webp") type("image/webp"),
+      url("https://cdn.jsdelivr.net/gh/sakurakouji-luna/pic@main/blog/blog_wallpaper_1.png") type("image/png")
+    ) center / cover fixed;
 }
 
 .polybar {
