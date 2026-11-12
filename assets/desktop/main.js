@@ -28,6 +28,7 @@
   let idCounter = 0;
 
   function setup() {
+    document.documentElement.classList.add("js-booted");
     for (let index = 1; index <= WORKSPACE_COUNT; index += 1) {
       state.workspaces[index] = null;
       state.workspaceFocus[index] = null;

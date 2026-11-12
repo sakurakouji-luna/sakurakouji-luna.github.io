@@ -1,0 +1,42 @@
+name: Generate sitemap
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - sitemap.xml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sitemap
+  cancel-in-progress: false
+
+jobs:
+  sitemap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Generate sitemap.xml
+        run: python3 scripts/gen-sitemap.py
+
+      - name: Commit if changed
+        run: |
+          if git diff --quiet -- sitemap.xml && git ls-files --error-unmatch sitemap.xml >/dev/null 2>&1; then
+            echo "sitemap.xml unchanged"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add sitemap.xml
+          git commit -m "chore: update sitemap.xml [skip ci]"
+          git push
