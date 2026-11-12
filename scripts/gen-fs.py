@@ -11,6 +11,7 @@ import json
 import os
 import sys
 
+sys.dont_write_bytecode = True  # importing gen-sitemap.py must not leave __pycache__ in the repo
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _spec = importlib.util.spec_from_file_location("gen_sitemap", os.path.join(ROOT, "scripts", "gen-sitemap.py"))
 gen_sitemap = importlib.util.module_from_spec(_spec)
