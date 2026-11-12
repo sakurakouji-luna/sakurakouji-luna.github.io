@@ -93,6 +93,7 @@
 
     elements.windowsLayer.addEventListener("click", handleWindowClick);
     elements.windowsLayer.addEventListener("submit", handleWindowSubmit);
+    elements.windowsLayer.addEventListener("keydown", handleTerminalKeydown);
 
     elements.interactionShield.addEventListener("click", () => {
       deactivateShield();
@@ -255,8 +256,9 @@
       const frame = form.closest(".window-frame");
       const input = form.querySelector(".terminal-input");
       if (!frame || !input) return;
-      executeTerminalCommand(frame.dataset.windowId, input.value);
+      const command = input.value;
       input.value = "";
+      executeTerminalCommand(frame.dataset.windowId, command);
     }
   }
 
@@ -316,6 +318,7 @@
       iframeUrl: app.iframeUrl || "",
       externalUrl: app.externalUrl || "",
       terminalLines: app.kind === "terminal" ? getInitialTerminalLines() : [],
+      terminalCwd: "/",
       terminalRevision: 0
     };
   }
@@ -807,16 +810,28 @@
         <div class="terminal-grid"></div>
       </div>
       <form class="terminal-form" data-action="terminal-form">
-        <span class="terminal-prompt">$</span>
+        <span class="terminal-prompt"></span>
         <input class="terminal-input" type="text" autocomplete="off" spellcheck="false" aria-label="Terminal command">
       </form>
     `;
     const scroll = terminal.querySelector(".terminal-scroll");
     const output = terminal.querySelector(".terminal-output");
+    terminal.querySelector(".terminal-prompt").textContent = `${node.terminalCwd || "/"} $`;
+    const previousInput = content.querySelector(".terminal-input");
+    if (previousInput) terminal.querySelector(".terminal-input").value = previousInput.value;
     for (const line of node.terminalLines || []) {
       const row = document.createElement("p");
       row.className = `terminal-line terminal-${line.kind || "output"}`;
-      row.textContent = line.text;
+      if (line.parts) {
+        for (const part of line.parts) {
+          const span = document.createElement("span");
+          if (part.kind) span.className = `terminal-${part.kind}`;
+          span.textContent = part.text;
+          row.appendChild(span);
+        }
+      } else {
+        row.textContent = line.text;
+      }
       output.appendChild(row);
     }
     const grid = terminal.querySelector(".terminal-grid");
@@ -914,9 +929,20 @@
     }
 
     const existingLines = found.windowNode.terminalLines || [];
-    const nextLines = options && options.synthetic ? [...existingLines] : [...existingLines, { kind: "prompt", text: `$ ${command}` }];
+    const cwd = found.windowNode.terminalCwd || "/";
+    const nextLines = options && options.synthetic ? [...existingLines] : [...existingLines, { kind: "prompt", text: `${cwd} $ ${command}` }];
     const [name, ...args] = command.split(/\s+/);
     const lowerName = name.toLowerCase();
+
+    const openQuery = args.join(" ");
+    const openPath = lowerName === "open" && openQuery && (looksLikeFsPath(openQuery) || !findTerminalOpenApp(openQuery));
+    if (FS_COMMANDS.has(lowerName) || openPath) {
+      setTerminalLines(windowId, nextLines);
+      runFsCommand(windowId, lowerName, args, cwd)
+        .catch((error) => [{ kind: "error", text: `${lowerName}: ${error.message}` }])
+        .then((lines) => appendTerminalLines(windowId, lines));
+      return;
+    }
 
     if (lowerName === "help") {
       nextLines.push(...getHelpLines());
@@ -958,13 +984,20 @@
       { kind: "output", text: "  exit        close this terminal" },
       { kind: "output", text: "  help        show commands and keybindings" },
       { kind: "output", text: "  open [app]  open a site app: " + getTerminalOpenAppNames() },
+      { kind: "output", text: "  open <path> open a site path (blog/bio/radio paths open in their window)" },
       { kind: "output", text: "  about       print personal information" },
+      { kind: "output", text: "Files (read-only view of moe.st, ~ is /):" },
+      { kind: "output", text: "  ls [-l] [path]      list a directory" },
+      { kind: "output", text: "  cd [path] / pwd     change / print the working directory" },
+      { kind: "output", text: "  tree [path] [-L n]  show the tree, depth 2 by default (max 6)" },
+      { kind: "output", text: "  cat <file>          print a text file (md txt html xml css js json, max 64 KiB)" },
       { kind: "output", text: "Keybindings:" },
       { kind: "output", text: "  Alt+Shift+Enter  open terminal" },
       { kind: "output", text: "  Alt+Shift+F      open Rofi launcher" },
       { kind: "output", text: "  Alt+Shift+Q      close focused window" },
       { kind: "output", text: "  Alt+Shift+G/V    set next split horizontal/vertical" },
       { kind: "output", text: "  Alt+Shift+H/J/K/L move focus left/down/up/right" },
+      { kind: "output", text: "  Tab              complete a command or path" },
       { kind: "output", text: "  Alt+1..9         switch workspace" },
       { kind: "output", text: "  Alt+Shift+1..9   move focused window to workspace" }
     ];
@@ -992,6 +1025,290 @@
       .filter((app) => TERMINAL_OPEN_APP_IDS.has(app.id))
       .map((app) => app.id)
       .join(", ");
+  }
+
+
+  // ---- read-only site filesystem for the terminal (data: /fs.json from scripts/gen-fs.py) ----
+  const FS_COMMANDS = new Set(["ls", "cd", "pwd", "tree", "cat"]);
+  const TERMINAL_COMMANDS = ["about", "cat", "cd", "clear", "exit", "help", "ls", "open", "pwd", "tree"];
+  const FS_TEXT_EXTENSIONS = new Set(["md", "txt", "html", "xml", "css", "js", "json"]);
+  const FS_CAT_LIMIT = 64 * 1024;
+  const FS_TREE_DEPTH = 2;
+  const FS_TREE_MAX_DEPTH = 6;
+  const FS_APP_PREFIXES = [["/blog/", "blog"], ["/bio/", "bio"], ["/radio/", "radio"]];
+  const SITE_ROOT_URL = new URL("./", window.location.href);
+  let fsPromise = null;
+
+  function loadFs() {
+    if (!fsPromise) {
+      fsPromise = fetch(new URL("fs.json", SITE_ROOT_URL), { cache: "no-cache" })
+        .then((response) => {
+          if (!response.ok) throw new Error(`file list unavailable (HTTP ${response.status})`);
+          return response.json();
+        })
+        .then((data) => data.root)
+        .catch((error) => {
+          fsPromise = null;
+          throw error;
+        });
+    }
+    return fsPromise;
+  }
+
+  function isUnsafeFsPath(path) {
+    return /^[a-z][a-z0-9+.-]*:/i.test(path) || path.startsWith("//") || path.includes("\\");
+  }
+
+  function looksLikeFsPath(value) {
+    const path = String(value || "").trim();
+    return path.startsWith("/") || path.startsWith(".") || path.startsWith("~") || path.includes("/") || /^[a-z][a-z0-9+.-]*:/i.test(path);
+  }
+
+  function resolveFsPath(cwd, rawPath) {
+    let path = String(rawPath || "").trim();
+    if (path === "~") path = "/";
+    else if (path.startsWith("~/")) path = path.slice(1);
+    const parts = path.startsWith("/") ? [] : cwd.split("/").filter(Boolean);
+    for (const part of path.split("/")) {
+      if (!part || part === ".") continue;
+      if (part === "..") parts.pop();
+      else parts.push(part);
+    }
+    return "/" + parts.join("/");
+  }
+
+  function getFsNode(root, path) {
+    let node = root;
+    for (const part of path.split("/").filter(Boolean)) {
+      if (!node || node.t !== "d" || !Object.prototype.hasOwnProperty.call(node.c, part)) return null;
+      node = node.c[part];
+    }
+    return node;
+  }
+
+  function fsUrl(path, node) {
+    const suffix = node && node.t === "d" && path !== "/" ? "/" : "";
+    const url = new URL("." + path + suffix, SITE_ROOT_URL);
+    if (url.origin !== SITE_ROOT_URL.origin) throw new Error("same-origin paths only");
+    return url;
+  }
+
+  function formatFsSize(bytes) {
+    if (bytes < 1024) return `${bytes}B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}K`;
+    return `${(bytes / 1024 / 1024).toFixed(1)}M`;
+  }
+
+  function formatFsTime(iso) {
+    return iso ? iso.slice(0, 16).replace("T", " ") : "----------------";
+  }
+
+  function sortedFsEntries(node) {
+    return Object.keys(node.c).sort().map((name) => [name, node.c[name]]);
+  }
+
+  function fsNamePart(name, node) {
+    return node.t === "d" ? { kind: "dir", text: `${name}/` } : { text: name };
+  }
+
+  async function runFsCommand(windowId, name, args, cwd) {
+    const operands = args.filter((arg) => !arg.startsWith("-"));
+    const unsafe = operands.find(isUnsafeFsPath);
+    if (unsafe) return [{ kind: "error", text: `${name}: ${unsafe}: only paths on this site are allowed` }];
+    if (name === "pwd") return [{ kind: "output", text: cwd }];
+
+    const root = await loadFs();
+    if (name === "ls") return fsList(root, cwd, args);
+    if (name === "cd") return fsChangeDirectory(windowId, root, cwd, operands[0]);
+    if (name === "tree") return fsTree(root, cwd, args);
+    if (name === "cat") return fsCat(root, cwd, operands);
+    if (name === "open") return fsOpen(root, cwd, operands.join(" "));
+    return [];
+  }
+
+  function fsList(root, cwd, args) {
+    const long = args.some((arg) => /^-[a-z]*l/.test(arg));
+    const targets = args.filter((arg) => !arg.startsWith("-"));
+    const lines = [];
+    for (const target of targets.length ? targets : ["."]) {
+      const path = resolveFsPath(cwd, target);
+      const node = getFsNode(root, path);
+      if (!node) {
+        lines.push({ kind: "error", text: `ls: cannot access '${target}': No such file or directory` });
+        continue;
+      }
+      if (targets.length > 1) lines.push({ kind: "muted", text: `${path}:` });
+      const entries = node.t === "d" ? sortedFsEntries(node) : [[path.split("/").pop(), node]];
+      if (!entries.length) continue;
+      if (long) {
+        for (const [entryName, entry] of entries) {
+          const size = entry.t === "d" ? "-" : formatFsSize(entry.s);
+          const meta = `${entry.t === "d" ? "d" : "-"}r--r--r--  ${size.padStart(7)}  ${formatFsTime(entry.m)}  `;
+          lines.push({ kind: "output", parts: [{ kind: "muted", text: meta }, fsNamePart(entryName, entry)] });
+        }
+      } else {
+        const parts = [];
+        entries.forEach(([entryName, entry], index) => {
+          if (index) parts.push({ text: "  " });
+          parts.push(fsNamePart(entryName, entry));
+        });
+        lines.push({ kind: "output", parts });
+      }
+    }
+    return lines;
+  }
+
+  function fsChangeDirectory(windowId, root, cwd, target) {
+    const path = resolveFsPath(cwd, target || "/");
+    const node = getFsNode(root, path);
+    if (!node) return [{ kind: "error", text: `cd: no such directory: ${target}` }];
+    if (node.t !== "d") return [{ kind: "error", text: `cd: not a directory: ${target}` }];
+    updateWindowEverywhere(windowId, (windowNode) => ({ ...windowNode, terminalCwd: path }));
+    return [];
+  }
+
+  function fsTree(root, cwd, args) {
+    let depth = FS_TREE_DEPTH;
+    let target = ".";
+    for (let index = 0; index < args.length; index += 1) {
+      if (args[index] === "-L") {
+        depth = Math.min(FS_TREE_MAX_DEPTH, Math.max(1, Number(args[index + 1]) || FS_TREE_DEPTH));
+        index += 1;
+      } else if (!args[index].startsWith("-")) {
+        target = args[index];
+      }
+    }
+    const path = resolveFsPath(cwd, target);
+    const node = getFsNode(root, path);
+    if (!node) return [{ kind: "error", text: `tree: ${target}: No such file or directory` }];
+    if (node.t !== "d") return [{ kind: "output", text: path }];
+    const lines = [{ kind: "output", parts: [{ kind: "dir", text: path }] }];
+    const counts = { dirs: 0, files: 0 };
+    const walk = (dir, prefix, level) => {
+      const entries = sortedFsEntries(dir);
+      entries.forEach(([entryName, entry], index) => {
+        const last = index === entries.length - 1;
+        counts[entry.t === "d" ? "dirs" : "files"] += 1;
+        lines.push({ kind: "output", parts: [{ kind: "muted", text: `${prefix}${last ? "└── " : "├── "}` }, fsNamePart(entryName, entry)] });
+        if (entry.t === "d" && level < depth) walk(entry, `${prefix}${last ? "    " : "│   "}`, level + 1);
+      });
+    };
+    walk(node, "", 1);
+    lines.push({ kind: "muted", text: `${counts.dirs} directories, ${counts.files} files (depth ${depth})` });
+    return lines;
+  }
+
+  async function fsCat(root, cwd, operands) {
+    if (!operands.length) return [{ kind: "error", text: "Usage: cat <file>" }];
+    const lines = [];
+    for (const target of operands) {
+      const path = resolveFsPath(cwd, target);
+      const node = getFsNode(root, path);
+      const extension = path.includes(".") ? path.split(".").pop().toLowerCase() : "";
+      if (!node) {
+        lines.push({ kind: "error", text: `cat: ${target}: No such file or directory` });
+      } else if (node.t === "d") {
+        lines.push({ kind: "error", text: `cat: ${target}: Is a directory` });
+      } else if (!FS_TEXT_EXTENSIONS.has(extension)) {
+        lines.push({ kind: "error", text: `cat: ${target}: binary file (${extension || "no extension"}), try \`open ${target}\`` });
+      } else {
+        const response = await fetch(fsUrl(path, node), { cache: "no-cache", credentials: "same-origin" });
+        if (!response.ok) {
+          lines.push({ kind: "error", text: `cat: ${target}: HTTP ${response.status}` });
+          continue;
+        }
+        const buffer = await response.arrayBuffer();
+        const text = new TextDecoder("utf-8").decode(buffer.slice(0, FS_CAT_LIMIT)).replace(/\r?\n$/, "");
+        lines.push({ kind: "file", text });
+        if (buffer.byteLength > FS_CAT_LIMIT) {
+          lines.push({ kind: "muted", text: `-- truncated: showing ${formatFsSize(FS_CAT_LIMIT)} of ${formatFsSize(buffer.byteLength)}; \`open ${target}\` for the full file --` });
+        }
+      }
+    }
+    return lines;
+  }
+
+  function fsOpen(root, cwd, target) {
+    const path = resolveFsPath(cwd, target);
+    const node = getFsNode(root, path);
+    if (!node) return [{ kind: "error", text: `open: ${target}: No such file or directory` }];
+    const url = fsUrl(path, node);
+    const routed = FS_APP_PREFIXES.find(([prefix]) => (path + "/").startsWith(prefix));
+    if (routed) {
+      const app = Apps.getApp(routed[1]);
+      const existing = findWindowByAppId(app.id);
+      if (existing) {
+        navigateWindow(existing.windowNode.id, url.href);
+        focusWorkspaceWindow(existing.workspace, existing.windowNode.id);
+      } else {
+        launchApp({ ...app, iframeUrl: url.href });
+      }
+      return [{ kind: "output", text: `Opening ${url.pathname} in ${app.title}` }];
+    }
+    window.open(url.href, "_blank", "noopener");
+    return [{ kind: "output", text: `Opening ${url.pathname} in a new tab` }];
+  }
+
+  function appendTerminalLines(windowId, lines) {
+    const found = findWindowEverywhere(windowId);
+    if (!found) return;
+    setTerminalLines(windowId, [...(found.windowNode.terminalLines || []), ...lines]);
+  }
+
+  function handleTerminalKeydown(event) {
+    if (event.key !== "Tab" || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    const input = event.target.closest ? event.target.closest(".terminal-input") : null;
+    if (!input) return;
+    event.preventDefault();
+    const frame = input.closest(".window-frame");
+    const found = frame ? findWindowEverywhere(frame.dataset.windowId) : null;
+    if (!found) return;
+    completeTerminalInput(found.windowNode, input);
+  }
+
+  async function completeTerminalInput(node, input) {
+    const value = input.value;
+    const tokenStart = value.search(/\S*$/);
+    const token = value.slice(tokenStart);
+    const head = value.slice(0, tokenStart);
+    const isCommand = !head.trim();
+    let candidates;
+    let base;
+    let dirPart = "";
+
+    if (isCommand) {
+      base = token;
+      candidates = TERMINAL_COMMANDS.filter((name) => name.startsWith(token)).map((name) => ({ name, suffix: " " }));
+    } else {
+      if (isUnsafeFsPath(token)) return;
+      const root = await loadFs().catch(() => null);
+      if (!root) return;
+      const command = head.trim().split(/\s+/)[0].toLowerCase();
+      const slash = token.lastIndexOf("/");
+      dirPart = token === "~" ? "~/" : slash >= 0 ? token.slice(0, slash + 1) : "";
+      base = token === "~" ? "" : token.slice(slash + 1);
+      const dir = getFsNode(root, resolveFsPath(node.terminalCwd || "/", dirPart || "."));
+      if (!dir || dir.t !== "d") return;
+      candidates = sortedFsEntries(dir)
+        .filter(([name, entry]) => name.startsWith(base) && (command !== "cd" || entry.t === "d"))
+        .map(([name, entry]) => ({ name, suffix: entry.t === "d" ? "/" : " " }));
+    }
+
+    if (!candidates.length) return;
+    if (candidates.length === 1) {
+      input.value = head + dirPart + candidates[0].name + candidates[0].suffix;
+      return;
+    }
+    const common = candidates.reduce((prefix, item) => {
+      let length = 0;
+      while (length < prefix.length && prefix[length] === item.name[length]) length += 1;
+      return prefix.slice(0, length);
+    }, candidates[0].name);
+    if (common.length > base.length) {
+      input.value = head + dirPart + common;
+      return;
+    }
+    appendTerminalLines(node.id, [{ kind: "muted", text: candidates.map((item) => item.name + (item.suffix === "/" ? "/" : "")).join("  ") }]);
   }
 
   if (document.readyState === "loading") {

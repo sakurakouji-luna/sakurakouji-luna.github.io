@@ -353,7 +353,8 @@ input {
 }
 
 .terminal-output {
-  min-height: 0;
+  /* auto (not 0) so long output pushes the launcher grid down instead of overlapping it */
+  min-height: auto;
   overflow: visible;
 }
 
@@ -391,6 +392,14 @@ input {
 
 .terminal-prompt {
   color: var(--accent);
+}
+
+.terminal-dir {
+  color: var(--accent);
+}
+
+.terminal-file {
+  color: var(--text);
 }
 
 .terminal-grid {

@@ -1,10 +1,11 @@
-name: Build blog & sitemap
+name: Build blog, sitemap & fs.json
 
 on:
   push:
     branches: [main]
     paths-ignore:
       - sitemap.xml
+      - fs.json
   workflow_dispatch:
 
 permissions:
@@ -55,6 +56,20 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git commit -m "chore: update sitemap.xml [skip ci]"
+          fi
+
+      - name: Generate fs.json for the terminal (last, so mtimes include the commits above)
+        run: python3 scripts/gen-fs.py
+
+      - name: Commit fs.json if changed
+        run: |
+          git add fs.json
+          if git diff --cached --quiet; then
+            echo "fs.json unchanged"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "chore: update fs.json [skip ci]"
           fi
 
       - name: Push
