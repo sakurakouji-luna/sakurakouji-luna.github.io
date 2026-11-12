@@ -55,6 +55,17 @@
     startSystemStatus();
     render();
     launchApp(Apps.getApp(Apps.DEFAULT_APP_ID), { forceNew: true, silent: true });
+    openDeepLink();
+  }
+
+  // ?app=<iframe app id>&path=/same-origin/path/ opens that app window at the path.
+  function openDeepLink() {
+    const params = new URLSearchParams(window.location.search);
+    const app = Apps.APP_REGISTRY.find((item) => item.id === params.get("app"));
+    if (!app || app.kind !== "iframe") return;
+    const path = params.get("path") || "";
+    const iframeUrl = /^\/(?!\/)[\w\-./%~]*$/.test(path) ? new URL(path, window.location.href).href : app.iframeUrl;
+    launchApp({ ...app, iframeUrl }, { silent: true });
   }
 
   function bindEvents() {
