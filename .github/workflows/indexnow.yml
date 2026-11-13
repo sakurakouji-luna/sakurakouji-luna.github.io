@@ -1,11 +1,13 @@
 name: Submit blog URLs to IndexNow
 
-# Runs after the official GitHub Pages workflow ("pages build and deployment",
-# id: pages-build-deployment) finishes a successful deploy from main. This repo
-# uses legacy branch Pages (main, /). Also runnable by hand with an optional URL list.
+# Runs after the official GitHub Pages workflow (API name: pages-build-deployment,
+# path: dynamic/pages/pages-build-deployment) finishes a successful deploy from
+# main. This repo uses legacy branch Pages (main, /). The run display title is
+# "pages build and deployment"; workflow_run must use the workflow name, not that title.
+# Also runnable by hand with an optional URL list.
 on:
   workflow_run:
-    workflows: ["pages build and deployment"]
+    workflows: ["pages-build-deployment"]
     types: [completed]
     branches: [main]
   workflow_dispatch:
@@ -246,9 +248,9 @@ jobs:
                           live.append(url)
                       else:
                           still.append(url)
+                  pending = still
                   if not still:
                       break
-                  pending = still
                   if attempt < attempts:
                       time.sleep(delay)
               if pending:
