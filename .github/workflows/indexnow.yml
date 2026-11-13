@@ -1,0 +1,343 @@
+name: Submit blog URLs to IndexNow
+
+# Runs after the official GitHub Pages workflow ("pages build and deployment",
+# id: pages-build-deployment) finishes a successful deploy from main. This repo
+# uses legacy branch Pages (main, /). Also runnable by hand with an optional URL list.
+on:
+  workflow_run:
+    workflows: ["pages build and deployment"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      urls:
+        description: "Optional moe.st URLs to submit (comma, space, or newline separated). Leave empty to do nothing."
+        required: false
+        type: string
+
+# actions: read is needed to look up the previous successful Pages deploy SHA
+# so we can diff against it (HEAD~1 would miss blog HTML hidden behind the
+# sitemap.xml / fs.json auto-commits). No write permissions; this job never pushes.
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: indexnow
+  cancel-in-progress: false
+
+jobs:
+  submit:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout deployed commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Collect changed blog URLs and submit to IndexNow
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          MANUAL_URLS: ${{ github.event.inputs.urls }}
+          DEPLOYED_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          PAGES_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          python3 << 'ENDSCRIPT'
+          #!/usr/bin/env python3
+          """Collect changed moe.st blog URLs and submit them to IndexNow."""
+          from __future__ import annotations
+          
+          import json
+          import os
+          import re
+          import subprocess
+          import sys
+          import time
+          import urllib.error
+          import urllib.request
+          from pathlib import Path
+          
+          HOST = "moe.st"
+          BASE = f"https://{HOST}"
+          INDEXNOW = "https://api.indexnow.org/indexnow"
+          KEY_RE = re.compile(r"^[0-9a-f]{32}\.txt$")
+          IGNORE_FILES = {"sitemap.xml", "fs.json"}
+          UA = "moe.st-indexnow/1.0"
+          MAX_URLS = 100  # IndexNow hard limit is 10,000; we only submit blog pages
+          
+          
+          def run(args: list[str], check: bool = True) -> subprocess.CompletedProcess:
+              return subprocess.run(args, check=check, text=True, capture_output=True)
+          
+          
+          def log(msg: str) -> None:
+              print(msg, flush=True)
+          
+          
+          def read_key() -> tuple[str, str]:
+              matches = [p for p in Path(".").iterdir() if p.is_file() and KEY_RE.match(p.name)]
+              if len(matches) != 1:
+                  raise SystemExit(f"expected exactly one IndexNow key file at repo root, found {[p.name for p in matches]}")
+              key = matches[0].read_text("utf-8").strip()
+              if key != matches[0].stem:
+                  raise SystemExit(f"IndexNow key file {matches[0].name} content does not match its name")
+              return key, f"{BASE}/{matches[0].name}"
+          
+          
+          def parse_manual_urls(raw: str) -> list[str]:
+              urls: list[str] = []
+              for part in re.split(r"[\s,]+", raw.strip()):
+                  if not part:
+                      continue
+                  if part.startswith("/"):
+                      part = BASE + part
+                  if not part.startswith(BASE + "/") and part != BASE:
+                      raise SystemExit(f"refusing non-{HOST} URL: {part}")
+                  if part == BASE:
+                      part = BASE + "/"
+                  urls.append(part)
+              # de-dupe, preserve order
+              seen: set[str] = set()
+              out: list[str] = []
+              for u in urls:
+                  if u not in seen:
+                      seen.add(u)
+                      out.append(u)
+              return out
+          
+          
+          def path_to_url(rel: str) -> str | None:
+              if not rel.startswith("blog/") or not rel.endswith(".html"):
+                  return None
+              if rel.endswith("/index.html"):
+                  return f"{BASE}/{rel[: -len('index.html')]}"
+              if rel == "blog/index.html":
+                  return f"{BASE}/blog/"
+              return f"{BASE}/{rel}"
+          
+          
+          def gh_json(args: list[str]) -> object:
+              env = os.environ.copy()
+              proc = run(["gh", *args], check=False)
+              if proc.returncode != 0:
+                  raise RuntimeError(f"gh {' '.join(args)} failed: {proc.stderr.strip() or proc.stdout.strip()}")
+              return json.loads(proc.stdout)
+          
+          
+          def previous_deploy_sha(current: str, current_run_id: str) -> str | None:
+              try:
+                  runs = gh_json([
+                      "run", "list",
+                      "--workflow", "pages-build-deployment",
+                      "--branch", "main",
+                      "--status", "success",
+                      "--json", "headSha,databaseId",
+                      "--limit", "30",
+                  ])
+              except Exception as exc:
+                  log(f"warning: could not list previous Pages runs ({exc})")
+                  return None
+              for row in runs:
+                  sha = row.get("headSha") or ""
+                  run_id = str(row.get("databaseId") or "")
+                  if current_run_id and run_id == str(current_run_id):
+                      continue
+                  if sha == current:
+                      continue
+                  if sha:
+                      return sha
+              return None
+          
+          
+          def only_ignored(files: list[str]) -> bool:
+              return bool(files) and all(name in IGNORE_FILES for name in files)
+          
+          
+          def files_in_commit(sha: str) -> list[str]:
+              out = run(["git", "diff-tree", "--no-commit-id", "--name-only", "-r", sha]).stdout.splitlines()
+              return [line.strip() for line in out if line.strip()]
+          
+          
+          def fallback_prev_sha(current: str) -> str | None:
+              proc = run(["git", "rev-list", "--max-count=30", current])
+              shas = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+              if len(shas) < 2:
+                  return None
+              i = 0
+              while i < len(shas) and only_ignored(files_in_commit(shas[i])):
+                  i += 1
+              # consume the current burst of content commits (not ignore-only)
+              while i < len(shas) and not only_ignored(files_in_commit(shas[i])):
+                  i += 1
+              if i < len(shas):
+                  return shas[i]
+              if i > 0:
+                  # all remaining history was the burst; prev is the parent of the oldest, if any
+                  # shas[i-1] is the oldest content commit we included; we want its parent
+                  parent = run(["git", "rev-parse", f"{shas[i - 1]}^"], check=False)
+                  if parent.returncode == 0:
+                      return parent.stdout.strip() or None
+              return None
+          
+          
+          def collect_from_diff(current: str, current_run_id: str) -> list[str]:
+              prev = previous_deploy_sha(current, current_run_id)
+              source = "previous successful Pages deploy"
+              if not prev:
+                  prev = fallback_prev_sha(current)
+                  source = "git fallback (skip sitemap/fs.json-only commits)"
+              if not prev:
+                  log("no previous SHA to diff against; skipping")
+                  return []
+              if prev == current:
+                  log(f"previous SHA equals deployed {current[:12]}; skipping")
+                  return []
+              ancestor = run(["git", "merge-base", "--is-ancestor", prev, current], check=False)
+              if ancestor.returncode != 0:
+                  log(f"warning: {prev} is not an ancestor of {current}; skipping auto collect")
+                  return []
+              log(f"diffing {prev}..{current} ({source})")
+              files = run(["git", "diff", "--name-only", "--diff-filter=AMCR", prev, current]).stdout.splitlines()
+              files = [f.strip() for f in files if f.strip()]
+              if not files:
+                  log("no files changed in range")
+                  return []
+              log("changed files:\n  " + "\n  ".join(files))
+              non_ignored = [f for f in files if f not in IGNORE_FILES]
+              if not non_ignored:
+                  log("range only touches sitemap.xml / fs.json; skipping")
+                  return []
+              urls: list[str] = []
+              seen: set[str] = set()
+              for rel in non_ignored:
+                  url = path_to_url(rel)
+                  if url and url not in seen:
+                      seen.add(url)
+                      urls.append(url)
+              if not urls:
+                  log("no blog HTML pages in range; skipping")
+              return urls
+          
+          
+          def wait_live(urls: list[str], attempts: int = 8, delay: int = 10) -> list[str]:
+              live: list[str] = []
+              pending = list(urls)
+              for attempt in range(1, attempts + 1):
+                  still: list[str] = []
+                  for url in pending:
+                      probe = url + ("&" if "?" in url else "?") + "_indexnow=1"
+                      req = urllib.request.Request(probe, method="GET", headers={"User-Agent": UA, "Cache-Control": "no-cache"})
+                      try:
+                          with urllib.request.urlopen(req, timeout=20) as resp:
+                              status = resp.status
+                              # drain
+                              resp.read()
+                      except urllib.error.HTTPError as exc:
+                          status = exc.code
+                      except Exception as exc:
+                          log(f"  {url} attempt {attempt}: error {exc}")
+                          still.append(url)
+                          continue
+                      log(f"  {url} attempt {attempt}: HTTP {status}")
+                      if status == 200:
+                          live.append(url)
+                      else:
+                          still.append(url)
+                  if not still:
+                      break
+                  pending = still
+                  if attempt < attempts:
+                      time.sleep(delay)
+              if pending:
+                  log("giving up on: " + ", ".join(pending))
+              return live
+          
+          
+          def submit(key: str, key_location: str, urls: list[str]) -> int:
+              payload = {
+                  "host": HOST,
+                  "key": key,
+                  "keyLocation": key_location,
+                  "urlList": urls[:MAX_URLS],
+              }
+              body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+              log("POST " + INDEXNOW)
+              log("urlList: " + ", ".join(payload["urlList"]))
+              last_status = 0
+              last_body = b""
+              for attempt in range(1, 4):
+                  req = urllib.request.Request(
+                      INDEXNOW,
+                      data=body,
+                      method="POST",
+                      headers={"Content-Type": "application/json; charset=utf-8", "User-Agent": UA},
+                  )
+                  try:
+                      with urllib.request.urlopen(req, timeout=30) as resp:
+                          last_status = resp.status
+                          last_body = resp.read()
+                  except urllib.error.HTTPError as exc:
+                      last_status = exc.code
+                      last_body = exc.read()
+                  except Exception as exc:
+                      log(f"IndexNow attempt {attempt}: request failed ({exc})")
+                      last_status = 0
+                      last_body = str(exc).encode()
+                      time.sleep(5)
+                      continue
+                  text = last_body.decode("utf-8", "replace")
+                  log(f"IndexNow attempt {attempt}: HTTP {last_status} body={text!r}")
+                  if last_status in (200, 202):
+                      return 0
+                  if last_status == 429 or last_status >= 500 or last_status == 0:
+                      time.sleep(5 * attempt)
+                      continue
+                  if 400 <= last_status < 500:
+                      log(f"IndexNow client error {last_status}; failing the job")
+                      return 1
+                  time.sleep(5)
+              if last_status in (200, 202):
+                  return 0
+              if last_status == 429 or last_status >= 500 or last_status == 0:
+                  log(f"IndexNow ended with HTTP {last_status}; not failing the job")
+                  return 0
+              return 1
+          
+          
+          def main() -> int:
+              event = os.environ.get("EVENT_NAME", "")
+              manual = os.environ.get("MANUAL_URLS", "") or ""
+              current = os.environ.get("DEPLOYED_SHA", "").strip()
+              run_id = os.environ.get("PAGES_RUN_ID", "").strip()
+          
+              if event == "workflow_dispatch" and manual.strip():
+                  urls = parse_manual_urls(manual)
+                  log("manual url list: " + ", ".join(urls))
+              elif event == "workflow_dispatch" and not manual.strip():
+                  log("workflow_dispatch with empty url list; nothing to submit")
+                  return 0
+              else:
+                  if not current:
+                      raise SystemExit("DEPLOYED_SHA is missing")
+                  log(f"Pages deploy SHA {current}")
+                  urls = collect_from_diff(current, run_id)
+          
+              if not urls:
+                  log("no URLs to submit; done")
+                  return 0
+          
+              key, key_location = read_key()
+              log(f"keyLocation {key_location}")
+              live = wait_live(urls)
+              if not live:
+                  log("none of the URLs returned HTTP 200; skipping IndexNow POST")
+                  return 0
+              return submit(key, key_location, live)
+          
+          
+          if __name__ == "__main__":
+              sys.exit(main())
+          ENDSCRIPT
