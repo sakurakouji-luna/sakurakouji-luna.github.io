@@ -14,6 +14,8 @@ Source posts: blog/posts-src/*.md with a front matter block:
   slug: optional-custom-slug
   updated: 2026-11-13      (optional)
   draft: true              (optional, skipped)
+  seo_title: optional <title> / og / JSON-LD headline
+  subtitle: optional line under the visible h1
   ---
 Files whose name starts with "_" are ignored too.
 Requires: pip install -r scripts/requirements-blog.txt
@@ -223,6 +225,8 @@ def load_posts():
         posts.append({
             "slug": slug, "title": meta["title"], "date": date, "updated": updated,
             "tags": meta.get("tags") or [], "description": meta["description"],
+            "seo_title": (meta.get("seo_title") or "").strip(),
+            "subtitle": (meta.get("subtitle") or "").strip(),
             "html": render_markdown(body), "src": path.name,
         })
     slugs = [p["slug"] for p in posts]
@@ -236,10 +240,11 @@ def load_posts():
 def build_post(post):
     url = f"{BASE}/blog/essays/{post['slug']}/"
     deep = f"/?app=blog&amp;path=/blog/essays/{post['slug']}/"
+    headline = post["seo_title"] or post["title"]
     ld = {
         "@context": "https://schema.org",
         "@type": "BlogPosting",
-        "headline": post["title"],
+        "headline": headline,
         "description": post["description"],
         "datePublished": post["date"].isoformat(),
         "dateModified": post["updated"].isoformat(),
@@ -251,18 +256,23 @@ def build_post(post):
         "publisher": {"@type": "Person", "name": AUTHOR, "url": f"{BASE}/"},
         "isPartOf": {"@type": "Blog", "name": "slchy 随笔", "url": f"{BASE}/blog/essays/"},
     }
+    if post["subtitle"]:
+        ld["alternativeHeadline"] = post["subtitle"]
     content = post["html"]
     # the first H1 in the markdown is replaced by the front-matter title
     content = re.sub(r"^((?:\s*<!--.*?-->)*)\s*<h1[^>]*>.*?</h1>\s*", r"\1\n", content, count=1, flags=re.S)
+    heading = [f"      <h1>{esc(post['title'])}</h1>"]
+    if post["subtitle"]:
+        heading.append(f'      <p class="post-subtitle" lang="en">{esc(post["subtitle"])}</p>')
     body = "\n".join([
         crumbs('<a href="/blog/essays/">essays</a>'),
-        f"      <h1>{esc(post['title'])}</h1>",
+        *heading,
         "      " + meta_line(post),
         content,
         f'      <footer class="post-foot"><a href="/blog/essays/">← 随笔列表</a>'
         f'<span class="sep"> | </span><a href="{deep}" target="_top">在 moe.st 桌面中打开</a></footer>',
     ])
-    return page(title=f"{post['title']} · slchy 随笔", description=post["description"],
+    return page(title=f"{headline} · slchy 随笔", description=post["description"],
                 canonical=url, og_type="article", ld=ld, body=body)
 
 
@@ -271,9 +281,14 @@ def build_index(posts):
     items = []
     for p in posts:
         tags = " ".join(f"#{esc(t)}" for t in p["tags"])
+        sub = (
+            f'<span class="post-card-subtitle" lang="en">{esc(p["subtitle"])}</span>'
+            if p["subtitle"] else ""
+        )
         items.append(
             f'        <li><a class="post-card" href="/blog/essays/{p["slug"]}/">'
             f'<span class="post-card-title">{esc(p["title"])}</span>'
+            f'{sub}'
             f'<span class="post-card-meta"><time datetime="{p["date"].isoformat()}">{p["date"].isoformat()}</time>'
             + (f' · {tags}' if tags else "") + "</span>"
             f'<span class="post-card-desc">{esc(p["description"])}</span></a></li>'

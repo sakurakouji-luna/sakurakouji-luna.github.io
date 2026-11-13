@@ -1,8 +1,10 @@
 ---
 title: 给眼镜换个脑子
+seo_title: 给眼镜换个脑子：小米 AI 眼镜（M2442G1）蓝牙 SPP 协议与 SDK · Xiaomi AI Glasses SPP Protocol & SDK
+subtitle: Xiaomi AI Glasses (M2442G1): Bluetooth SPP Protocol, SDK and Third-Party Model Integration
 date: 2026-11-12
-tags: [小米AI眼镜, 折腾]
-description: 小米 AI 眼镜固件断更，ADB 也没开成，第三方实现了相关协议，自己写了个宿主机端把别的模型接了进去。
+tags: [小米AI眼镜, M2442G1, 蓝牙SPP, SDK, 折腾]
+description: 小米 AI 眼镜（M2442G1）固件断更，ADB 也没开成，第三方实现了蓝牙 SPP 协议，自己写了个宿主机端 SDK 把别的模型接了进去。
 ---
 
 今年年初买了副小米 AI 眼镜。刚到手那阵子确实新鲜，出门走哪戴哪，拍了不少照片和视频。
