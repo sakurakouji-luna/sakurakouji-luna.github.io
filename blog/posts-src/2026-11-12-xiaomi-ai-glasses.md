@@ -23,4 +23,4 @@ description: 小米 AI 眼镜（M2442G1）固件断更，ADB 也没开成，第�
 
 ADB 终究没开出来，但这么一通操作下来，也算是给它换了个脑子。
 
-代码和协议整理放在 [GitHub](https://github.com/slchy/xiaomi-ai-glasses2grok-and-so-on) 上了，[哔哩哔哩](https://www.bilibili.com/video/BV1jn456gEeQ/)有一段实机演示。纯属个人折腾，非官方实现。
+代码和蓝牙 SPP 协议整理放在 GitHub 上：[xiaomi-ai-glasses2grok-and-so-on](https://github.com/slchy/xiaomi-ai-glasses2grok-and-so-on)，[哔哩哔哩](https://www.bilibili.com/video/BV1jn456gEeQ/)有一段实机演示。纯属个人折腾，非官方实现。
