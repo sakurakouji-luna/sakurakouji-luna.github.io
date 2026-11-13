@@ -2,13 +2,15 @@
 """Generate fs.json, the read-only file tree behind the terminal's ls/cd/cat/tree.
 
 Reuses gen-sitemap.py's git lastmod helper. Skips dot folders (.git, .github),
-scripts/, archive/, node_modules/, fs.json itself, and binaries over 512 KiB.
+scripts/, archive/, node_modules/, fs.json itself, the IndexNow key file
+(<32-hex>.txt at the site root), and binaries over 512 KiB.
 Format: {"v":1,"root":{"t":"d","c":{"name":{"t":"f","s":bytes,"m":"ISO time"},...}}}
 """
 import datetime as dt
 import importlib.util
 import json
 import os
+import re
 import sys
 
 sys.dont_write_bytecode = True  # importing gen-sitemap.py must not leave __pycache__ in the repo
@@ -19,6 +21,8 @@ _spec.loader.exec_module(gen_sitemap)
 
 SKIP_DIRS = {"scripts", "archive", "node_modules"}
 SKIP_FILES = {"fs.json"}
+# IndexNow verification file at the site root (public, but not site content)
+INDEXNOW_KEY_RE = re.compile(r"^[0-9a-f]{32}\.txt$")
 TEXT_EXT = {".md", ".txt", ".html", ".xml", ".css", ".js", ".json", ".yml", ".svg"}
 MAX_BINARY = 512 * 1024
 
@@ -35,7 +39,9 @@ def build():
                 node = node["c"].setdefault(part, {"t": "d", "c": {}})
         for name in sorted(filenames):
             rel = os.path.normpath(os.path.join(rel_dir, name)).replace(os.sep, "/")
-            if name.startswith(".") or name in SKIP_FILES and rel_dir == ".":
+            if name.startswith("."):
+                continue
+            if rel_dir == "." and (name in SKIP_FILES or INDEXNOW_KEY_RE.match(name)):
                 continue
             size = os.path.getsize(os.path.join(ROOT, rel))
             if os.path.splitext(name)[1].lower() not in TEXT_EXT and size > MAX_BINARY:
